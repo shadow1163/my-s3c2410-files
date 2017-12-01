@@ -178,9 +178,12 @@ copyex:
 	bl	cpu_init_crit
 #endif
 
-#ifdef	CONFIG_AT91RM9200
+//#ifdef	CONFIG_AT91RM9200
 
 #ifndef CONFIG_SKIP_RELOCATE_UBOOT
+#ifdef CONFIG_S3C2410_NAND_BOOT
+bl   copy_myself
+#else
 relocate:				/* relocate U-Boot to RAM	    */
 	adr	r0, _start		/* r0 <- current position of code   */
 	ldr	r1, _TEXT_BASE		/* test if we run from flash or RAM */
@@ -222,6 +225,47 @@ clbss_l:str	r2, [r0]		/* clear loop...                    */
 	ldr	pc, _start_armboot
 
 _start_armboot:	.word start_armboot
+
+/*
+*************************************************************************
+*
+* copy u-boot  to ram
+*
+*************************************************************************
+*/ 
+
+#ifdef CONFIG_S3C2410_NAND_BOOT
+copy_myself:
+mov         r10, lr                         @save return address to r10
+ldr                  sp, DW_STACK_START
+mov         fp, #0 
+bl           NF_Init
+ldr           r0, =UBOOT_RAM_BASE
+mov         r1, #0x0
+mov         r2, #0x30000
+bl           nand_read_whole
+tst            r0, #0x0
+beq         ok_nand_read
+1:        b            1b
+ok_nand_read:
+mov         r0, #0x00000000
+ldr           r1, =UBOOT_RAM_BASE
+mov         r2, #0x400
+go_next:
+ldr           r3, [r0], #4
+ldr           r4, [r1], #4
+teq          r3, r4
+bne          notmatch
+subs         r2, r2, #4
+beq         done_nand_read
+bne          go_next
+notmatch:
+1:        b            1b
+done_nand_read:
+    mov        pc, r10
+#endif
+DW_STACK_START:
+    .word   STACK_BASE+STACK_SIZE-4
 
 
 /*
