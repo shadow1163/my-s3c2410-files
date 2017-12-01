@@ -91,15 +91,28 @@
 #define CONFIG_CMD_DATE
 #define CONFIG_CMD_ELF
 
+#define CONFIG_CMD_REGINFO
 
-#define CONFIG_BOOTDELAY	3
-/*#define CONFIG_BOOTARGS    	"root=ramfs devfs=mount console=ttySA0,9600" */
-/*#define CONFIG_ETHADDR	08:00:3e:26:0a:5b */
+#define CONFIG_CMD_NAND
+
+#define CONFIG_CMD_PING
+
+#define CONFIG_CMD_DLF
+
+#define CONFIG_CMD_ENV
+
+#define CONFIG_CMD_NET
+
+
+
+#define CONFIG_BOOTDELAY	10
+#define CONFIG_BOOTARGS    	"root=/dev/mtdblock3 init=/linuxrc console=ttySAC0,115200"
+#define CONFIG_ETHADDR	8:00:3e:26:0a:5b 
 #define CONFIG_NETMASK          255.255.255.0
-#define CONFIG_IPADDR		10.0.0.110
-#define CONFIG_SERVERIP		10.0.0.1
-/*#define CONFIG_BOOTFILE	"elinos-lart" */
-/*#define CONFIG_BOOTCOMMAND	"tftp; bootm" */
+#define CONFIG_IPADDR		192.168.31.222
+#define CONFIG_SERVERIP		192.168.31.200
+#define CONFIG_BOOTFILE	"uImage"
+#define CONFIG_BOOTCOMMAND	"tftp; bootm"
 
 #if defined(CONFIG_CMD_KGDB)
 #define CONFIG_KGDB_BAUDRATE	115200		/* speed to run kgdb serial port */
@@ -111,7 +124,7 @@
  * Miscellaneous configurable options
  */
 #define	CFG_LONGHELP				/* undef to save memory		*/
-#define	CFG_PROMPT		"SMDK2410 # "	/* Monitor Command Prompt	*/
+#define	CFG_PROMPT		"[junbo]# "	/* Monitor Command Prompt	*/
 #define	CFG_CBSIZE		256		/* Console I/O Buffer Size	*/
 #define	CFG_PBSIZE (CFG_CBSIZE+sizeof(CFG_PROMPT)+16) /* Print Buffer Size */
 #define	CFG_MAXARGS		16		/* max number of command args	*/
@@ -122,7 +135,8 @@
 
 #undef  CFG_CLKS_IN_HZ		/* everything, incl board info, in Hz */
 
-#define	CFG_LOAD_ADDR		0x33000000	/* default load address	*/
+#define	CFG_LOAD_ADDR		0x30008000	/* default load address	*/
+#define	CFG_TFTP_LOAD_ADDR		0x30008000	/* default load address	*/
 
 /* the PWM TImer 4 uses a counter of 15625 for 10 ms, so we need */
 /* it to wrap 100 times (total 1562500) to get 1 sec. */
@@ -178,7 +192,57 @@
 #define CFG_FLASH_ERASE_TOUT	(5*CFG_HZ) /* Timeout for Flash Erase */
 #define CFG_FLASH_WRITE_TOUT	(5*CFG_HZ) /* Timeout for Flash Write */
 
-#define	CFG_ENV_IS_IN_FLASH	1
-#define CFG_ENV_SIZE		0x10000	/* Total Size of Environment Sector */
+#define	CFG_ENV_IS_IN_NAND	1
+#define CFG_ENV_SIZE		0x4000	/* Total Size of Environment Sector */
+#define CFG_ENV_OFFSET      (0x80000-0x4000)
 
+#define CONFIG_S3C2410_NAND_BOOT 1 
+#define STACK_BASE      0x33f00000
+#define STACK_SIZE      0x8000
+#define UBOOT_RAM_BASE  0x33f80000
+#define CFG_NAND_BASE 0x4E000000
+#define CFG_MAX_NAND_DEVICE 1 
+#define SECTORSIZE 512
+#define NAND_SECTOR_SIZE SECTORSIZE
+#define NAND_BLOCK_MASK (NAND_SECTOR_SIZE - 1)
+#define ADDR_COLUMN 1
+#define ADDR_PAGE 2 
+#define ADDR_COLUMN_PAGE 3
+#define NAND_ChipID_UNKNOWN 0x00
+#define NAND_MAX_FLOORS 1
+#define NAND_MAX_CHIPS 1
+
+#define WRITE_NAND_COMMAND(d, adr) do {rNFCMD = d;} while(0)
+#define WRITE_NAND_ADDRESS(d, adr) do {rNFADDR = d;} while(0)
+#define WRITE_NAND(d, adr) do {rNFDATA = d;} while(0)
+#define READ_NAND(adr) (rNFDATA)
+#define NAND_WAIT_READY(nand) {while(!(rNFSTAT&(1<<0)));}
+#define NAND_DISABLE_CE(nand) {rNFCONF |= (1<<11);}
+#define NAND_ENABLE_CE(nand) {rNFCONF &= ~(1<<11);}
+
+#define NAND_CTL_CLRALE(nandptr)
+#define NAND_CTL_SETALE(nandptr)
+#define NAND_CTL_CLRCLE(nandptr)
+#define NAND_CTL_SETCLE(nandptr)
+
+#define CONFIG_MTD_NAND_VERIFY_WRITE 1
+
+#define rNFCONF (*(volatile unsigned int *)0x4e000000)
+#define rNFCMD (*(volatile unsigned char *)0x4e000004)
+#define rNFADDR (*(volatile unsigned char *)0x4e000008)
+#define rNFDATA (*(volatile unsigned char *)0x4e00000c)
+#define rNFSTAT (*(volatile unsigned int *)0x4e000010)
+#define rNFECC (*(volatile unsigned int *)0x4e000014)
+#define rNFECC0 (*(volatile unsigned char *)0x4e000014)
+#define rNFECC1 (*(volatile unsigned char *)0x4e000015)
+#define rNFECC2 (*(volatile unsigned char *)0x4e000016)
+
+#define NF_CMD(cmd) {rNFCMD=cmd;}
+#define NF_ADDR(addr) {rNFADDR=addr;}
+#define NF_nFCE_L() {rNFCONF&=~(1<<11);}
+#define NF_nFCE_H() {rNFCONF|=(1<<11);}
+#define NF_RSTECC() {rNFCONF|=(1<<12);}
+#define NF_RDDATA() (rNFDATA)
+#define NF_WRDATA(data) {rNFDATA=data;}
+#define NF_WAITRB() {while(!(rNFSTAT&(1<<0)));}
 #endif	/* __CONFIG_H */
