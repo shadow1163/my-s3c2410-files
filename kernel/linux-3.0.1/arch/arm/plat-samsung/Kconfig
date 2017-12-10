@@ -218,7 +218,7 @@ config S3C_DEV_FB
 	  Compile in platform device definition for framebuffer
 
 config S3C_DEV_USB_HOST
-	bool
+	bool "support S3C_DEV_USB_HOST"
 	help
 	  Compile in platform device definition for USB host.
 

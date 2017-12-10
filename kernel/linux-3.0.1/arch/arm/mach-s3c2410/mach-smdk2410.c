@@ -97,7 +97,8 @@ static struct platform_device *smdk2410_devices[] __initdata = {
 static void __init smdk2410_map_io(void)
 {
 	s3c24xx_init_io(smdk2410_iodesc, ARRAY_SIZE(smdk2410_iodesc));
-	s3c24xx_init_clocks(0);
+	//s3c24xx_init_clocks(0);
+	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(smdk2410_uartcfgs, ARRAY_SIZE(smdk2410_uartcfgs));
 }
 
