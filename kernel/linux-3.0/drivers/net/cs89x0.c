@@ -151,6 +151,7 @@
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/irq.h>
+
 #if ALLOW_DMA
 #include <asm/dma.h>
 #endif
@@ -189,6 +190,12 @@ static unsigned int netcard_portlist[] __used __initdata = {
 	PBC_BASE_ADDRESS + PBC_CS8900A_IOBASE + 0x300, 0
 };
 static unsigned cs8900_irq_map[] = {EXPIO_INT_ENET_INT, 0, 0, 0};
+#elif defined(CONFIG_ARCH_S3C2410)
+#include <asm/io.h> 
+#include <mach/regs-mem.h> 
+#define S3C24XX_PA_CS8900   0x19000000
+static unsigned int netcard_portlist[] __initdata = {0, 0};
+static unsigned int cs8900_irq_map[] = {IRQ_EINT9, 0, 0, 0};
 #else
 static unsigned int netcard_portlist[] __used __initdata =
    { 0x300, 0x320, 0x340, 0x360, 0x200, 0x220, 0x240, 0x260, 0x280, 0x2a0, 0x2c0, 0x2e0, 0};
@@ -308,7 +315,12 @@ struct net_device * __init cs89x0_probe(int unit)
 	unsigned *port;
 	int err = 0;
 	int irq;
-	int io;
+	unsigned int io;
+
+#if defined(CONFIG_ARCH_S3C2410)
+	unsigned int oldval_bwscon;
+	unsigned int oldval_bankcon3;
+#endif
 
 	if (!dev)
 		return ERR_PTR(-ENODEV);
@@ -317,7 +329,23 @@ struct net_device * __init cs89x0_probe(int unit)
 	netdev_boot_setup_check(dev);
 	io = dev->base_addr;
 	irq = dev->irq;
+#if defined(CONFIG_ARCH_S3C2410)
+	if(netcard_portlist[0])
+		return ERR_PTR(-ENODEV);
 
+	netcard_portlist[0] = (unsigned int)ioremap(S3C24XX_PA_CS8900, SZ_1M) + 0x300;
+	dev->dev_addr[0] = 0x08;
+	dev->dev_addr[1] = 0x00;
+	dev->dev_addr[2] = 0x3e;
+	dev->dev_addr[3] = 0x26;
+	dev->dev_addr[4] = 0x0a;
+	dev->dev_addr[5] = 0x5b;
+
+	oldval_bwscon = *((volatile unsigned int *)S3C2410_BWSCON);
+	*((volatile unsigned int *)S3C2410_BWSCON) = (oldval_bwscon & ~(3<<12)) | S3C2410_BWSCON_DW3_16 | S3C2410_BWSCON_WS3 | S3C2410_BWSCON_ST3;
+	oldval_bankcon3 = *((volatile unsigned int *)S3C2410_BANKCON3);
+	*((volatile unsigned int *)S3C2410_BANKCON3) = 0x1f7c;
+#endif
 	if (net_debug)
 		printk("cs89x0:cs89x0_probe(0x%x)\n", io);
 
@@ -327,6 +355,8 @@ struct net_device * __init cs89x0_probe(int unit)
 		err = -ENXIO;
 	} else {
 		for (port = netcard_portlist; *port; port++) {
+			if (net_debug)
+				printk("cs89x0.c:cs89x0_probe1(dev)\n");
 			if (cs89x0_probe1(dev, *port, 0) == 0)
 				break;
 			dev->irq = irq;
@@ -338,6 +368,12 @@ struct net_device * __init cs89x0_probe(int unit)
 		goto out;
 	return dev;
 out:
+#if defined(CONFIG_ARCH_S3C2410)
+	iounmap(netcard_portlist[0]);
+	netcard_portlist[0] = 0;
+	*((volatile unsigned int *)S3C2410_BWSCON) = oldval_bwscon;
+	*((volatile unsigned int *)S3C2410_BANKCON3) = oldval_bankcon3;
+#endif
 	free_netdev(dev);
 	printk(KERN_WARNING "cs89x0: no cs8900 or cs8920 detected.  Be sure to disable PnP with SETUP\n");
 	return ERR_PTR(err);
@@ -526,7 +562,8 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 			lp->dmasize = 16;	/* Could make this an option... */
 		}
 #endif
-		lp->force = g_cs89x0_media__force;
+		//lp->force = g_cs89x0_media__force;
+		lp->force = FORCE_RJ45;
 #endif
 
 #if defined(CONFIG_MACH_QQ2440)
@@ -1228,7 +1265,7 @@ net_open(struct net_device *dev)
 	}
 	else
 	{
-#ifndef CONFIG_CS89x0_NONISA_IRQ
+#if !defined(CONFIG_CS89x0_NONISA_IRQ) && !defined(CONFIG_ARCH_S3C2410)
 		if (((1 << dev->irq) & lp->irq_map) == 0) {
 			printk(KERN_ERR "%s: IRQ %d is not in our map of allowable IRQs, which is %x\n",
                                dev->name, dev->irq, lp->irq_map);
@@ -1243,7 +1280,12 @@ net_open(struct net_device *dev)
 		writereg(dev, PP_BusCTL, ENABLE_IRQ | MEMORY_ON);
 #endif
 		write_irq(dev, lp->chip_type, dev->irq);
-		ret = request_irq(dev->irq, net_interrupt, 0, dev->name, dev);
+#if defined(CONFIG_ARCH_S3C2410)
+		ret = request_irq(dev->irq, &net_interrupt, IRQF_TRIGGER_RISING, dev->name, dev);
+#else
+		//ret = request_irq(dev->irq, net_interrupt, 0, dev->name, dev);
+		ret = request_irq(dev->irq, &net_interrupt, 0, dev->name, dev);
+#endif
 		if (ret) {
 			printk(KERN_ERR "cs89x0: request_irq(%d) failed\n", dev->irq);
 			goto bad_out;
@@ -1311,6 +1353,9 @@ net_open(struct net_device *dev)
 	case A_CNF_MEDIA_AUI:   result = lp->adapter_cnf & A_CNF_AUI; break;
 	case A_CNF_MEDIA_10B_2: result = lp->adapter_cnf & A_CNF_10B_2; break;
         default: result = lp->adapter_cnf & (A_CNF_10B_T | A_CNF_AUI | A_CNF_10B_2);
+#ifdef CONFIG_ARCH_S3C2410
+	result=A_CNF_10B_T;
+#endif
         }
         if (!result) {
                 printk(KERN_ERR "%s: EEPROM is configured for unavailable media\n", dev->name);
