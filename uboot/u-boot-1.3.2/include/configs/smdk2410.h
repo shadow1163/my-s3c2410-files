@@ -90,6 +90,9 @@
 #define CONFIG_CMD_CACHE
 #define CONFIG_CMD_DATE
 #define CONFIG_CMD_ELF
+#define CONFIG_CMD_TAG
+#define CONFIG_CMDLINE_TAG 1
+#define CONFIG_SETUP_MEMORY_TAGS 1
 
 #define CONFIG_CMD_REGINFO
 
@@ -109,8 +112,8 @@
 #define CONFIG_BOOTARGS    	"root=/dev/mtdblock3 init=/linuxrc console=ttySAC0,115200"
 #define CONFIG_ETHADDR	8:00:3e:26:0a:5b 
 #define CONFIG_NETMASK          255.255.255.0
-#define CONFIG_IPADDR		192.168.31.222
-#define CONFIG_SERVERIP		192.168.31.200
+#define CONFIG_IPADDR		192.168.1.222
+#define CONFIG_SERVERIP		192.168.1.200
 #define CONFIG_BOOTFILE	"uImage"
 #define CONFIG_BOOTCOMMAND	"tftp; bootm"
 
@@ -245,4 +248,7 @@
 #define NF_RDDATA() (rNFDATA)
 #define NF_WRDATA(data) {rNFDATA=data;}
 #define NF_WAITRB() {while(!(rNFSTAT&(1<<0)));}
+
+//#define CONFIG_SKIP_LOWLEVEL_INIT
+//#define CONFIG_SKIP_RELOCATE_UBOOT
 #endif	/* __CONFIG_H */
